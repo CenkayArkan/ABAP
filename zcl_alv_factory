@@ -1,0 +1,403 @@
+CLASS zcl_alv_factory DEFINITION
+  PUBLIC
+  INHERITING FROM cl_gui_alv_grid
+  CREATE PUBLIC .
+  PUBLIC SECTION.
+    CLASS-DATA : m_cont     TYPE REF TO cl_gui_custom_container.
+    CLASS-DATA : m_splitter TYPE REF TO cl_gui_splitter_container.
+    CLASS-METHODS create
+      IMPORTING
+        "i_shellstyle     TYPE i
+        "i_lifetime       TYPE i
+        i_parent        TYPE REF TO cl_gui_container OPTIONAL
+        "i_appl_events    TYPE char01
+        "i_parentdbg      TYPE REF TO cl_gui_container
+        "i_applogparent   TYPE REF TO cl_gui_container
+        "i_graphicsparent TYPE REF TO cl_gui_container
+        "i_name           TYPE string
+        "i_fcat_complete  TYPE sap_bool
+      RETURNING
+        VALUE(r_result) TYPE REF TO zcl_alv_factory.
+    CLASS-METHODS create_fcat_from_structure      IMPORTING VALUE(i_structure) TYPE strname
+                                                  RETURNING VALUE(r_fcat)      TYPE lvc_t_fcat  .
+    CLASS-METHODS : create_container
+      IMPORTING VALUE(i_container_name) TYPE scrfname
+      RETURNING VALUE(o_obj)            TYPE REF TO cl_gui_custom_container.
+    METHODS  create_container2
+      IMPORTING VALUE(i_container_name) TYPE scrfname
+      RETURNING VALUE(o_obj)            TYPE REF TO cl_gui_custom_container.
+    CLASS-METHODS create_splitter
+      IMPORTING VALUE(i_cont) TYPE REF TO cl_gui_container
+                VALUE(i_row)  TYPE i
+                VALUE(i_col)  TYPE i
+      RETURNING VALUE(o_obj)  TYPE REF TO cl_gui_splitter_container .
+    METHODS : set_fcat
+      IMPORTING VALUE(i_fcat) TYPE lvc_t_fcat .
+    METHODS : get_fcat
+      EXPORTING VALUE(e_fcat) TYPE lvc_t_fcat .
+    METHODS : set_layo
+      EXPORTING VALUE(e_layo) TYPE REF TO lvc_s_layo .
+    METHODS : get_layo
+      IMPORTING VALUE(i_layo) TYPE REF TO lvc_s_layo .
+    METHODS : set_data
+      IMPORTING VALUE(i_data) TYPE REF TO data.
+    METHODS : get_data
+      EXPORTING VALUE(e_data) TYPE REF TO data.
+    METHODS : set_exlude
+      IMPORTING VALUE(i_excluding) TYPE REF TO ui_functions.
+    METHODS : get_exlude
+      EXPORTING VALUE(e_exluding) TYPE REF TO ui_functions.
+    METHODS set_layout
+      IMPORTING VALUE(i_layout) TYPE REF TO lvc_s_layo.
+    METHODS get_layout
+      RETURNING VALUE(e_layout) TYPE REF TO lvc_s_layo.
+    METHODS set_sort
+      IMPORTING VALUE(i_sort) TYPE REF TO lvc_t_sort .
+    METHODS get_sort
+      EXPORTING VALUE(e_sort) TYPE REF TO lvc_t_sort .
+    METHODS set_filter
+      IMPORTING VALUE(i_filter) TYPE REF TO lvc_t_filt.
+    METHODS get_filter
+      EXPORTING VALUE(e_filter) TYPE REF TO lvc_t_filt  .
+    METHODS set_variant_alv
+      IMPORTING VALUE(i_variant) TYPE REF TO disvariant.
+    METHODS display.
+    METHODS refresh_alv .
+    METHODS set_container_grid
+      IMPORTING VALUE(i_row) TYPE i
+                VALUE(i_col) TYPE i.
+    CLASS-METHODS create_fcat_from_table
+      IMPORTING VALUE(it_table) TYPE STANDARD TABLE
+      RETURNING VALUE(r_fcat)   TYPE lvc_t_fcat.
+
+    METHODS free_objects.
+  PRIVATE SECTION.
+    DATA       : mt_fcat    TYPE lvc_t_fcat .
+    DATA       : m_layo     TYPE REF TO lvc_s_layo .
+    DATA       : m_exlude   TYPE REF TO ui_functions.
+    DATA       : m_layout   TYPE REF TO lvc_s_layo.
+    DATA       : m_variant  TYPE REF TO disvariant.
+    DATA       : mt_sort    TYPE REF TO lvc_t_sort .
+    DATA       : mt_filter TYPE REF TO lvc_t_filt .
+    METHODS    : set_fcat_when_initial.
+ENDCLASS.
+
+
+CLASS zcl_alv_factory IMPLEMENTATION.
+  METHOD create.
+    IF r_result IS INITIAL.
+      CREATE OBJECT r_result
+        EXPORTING
+*         i_shellstyle     = i_shellstyle
+*         i_lifetime       = i_lifetime
+          i_parent = i_parent
+*         i_appl_events    = i_appl_events
+*         i_parentdbg      = i_parentdbg
+*         i_applogparent   = i_applogparent
+*         i_graphicsparent = i_graphicsparent
+*         i_name   = i_name
+*         i_fcat_complete  = i_fcat_complete.
+        .
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD create_splitter.
+    IF m_splitter IS INITIAL.
+      CREATE OBJECT m_splitter
+        EXPORTING
+*         link_dynnr        =     " Screen Number
+*         link_repid        =     " Report Name
+*         shellstyle        =     " Window Style
+*         left              =     " Left-aligned
+*         top               =     " top
+*         width             =     " NPlWidth
+*         height            =     " Hght
+*         metric            = CNTL_METRIC_DYNPRO    " Metric
+*         align             = 15    " Alignment
+          parent            = i_cont    " Parent Container
+          rows              = i_row    " Number of Rows to be displayed
+          columns           = i_col    " Number of Columns to be Displayed
+*         no_autodef_progid_dynnr =     " Don't Autodefined Progid and Dynnr?
+*         name              =     " Name
+        EXCEPTIONS
+          cntl_error        = 1
+          cntl_system_error = 2
+          OTHERS            = 3.
+    ENDIF.
+    o_obj = m_splitter.
+  ENDMETHOD.
+  METHOD set_container_grid.
+
+  ENDMETHOD.
+  METHOD create_fcat_from_structure.
+    CALL FUNCTION 'LVC_FIELDCATALOG_MERGE'
+      EXPORTING
+*       i_buffer_active        =     " Buffer active
+        i_structure_name       = i_structure    " Structure name (structure, table, view)
+        i_client_never_display = 'X'    " Hide client fields
+*       i_bypassing_buffer     =     " Ignore buffer while reading
+*       i_internal_tabname     =     " Table Name
+      CHANGING
+        ct_fieldcat            = r_fcat   " Field Catalog with Field Descriptions
+      EXCEPTIONS
+        inconsistent_interface = 1
+        program_error          = 2
+        OTHERS                 = 3.
+    IF sy-subrc <> 0.
+*     MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+*                WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD set_exlude.
+    me->m_exlude ?= i_excluding.
+  ENDMETHOD.
+
+  METHOD get_exlude.
+    e_exluding ?= me->m_exlude.
+  ENDMETHOD.
+  METHOD set_layout.
+    me->m_layout ?= i_layout.
+  ENDMETHOD.
+  METHOD get_layout.
+    e_layout ?= me->m_layout.
+  ENDMETHOD.
+
+  METHOD set_sort.
+    me->mt_sort ?= i_sort.
+  ENDMETHOD.
+  METHOD get_sort.
+    e_sort ?= me->mt_sort.
+  ENDMETHOD.
+
+  METHOD set_filter.
+    me->mt_filter ?= i_filter.
+  ENDMETHOD.
+  METHOD get_filter.
+    e_filter ?= me->mt_filter.
+  ENDMETHOD.
+
+
+  METHOD set_fcat.
+    me->mt_fcat = i_fcat.
+  ENDMETHOD.
+
+  METHOD get_fcat.
+    e_fcat = me->mt_fcat.
+  ENDMETHOD.
+
+  METHOD get_layo.
+    me->m_layo ?= i_layo .
+  ENDMETHOD.
+
+  METHOD set_layo.
+    me->m_layo ?= e_layo.
+
+  ENDMETHOD.
+
+  METHOD get_data.
+    e_data ?= me->mt_outtab.
+  ENDMETHOD.
+
+  METHOD set_data.
+    me->mt_outtab ?= i_data .
+  ENDMETHOD.
+
+  METHOD set_variant_alv.
+    IF me->m_variant IS INITIAL.
+      CREATE DATA me->m_variant.
+    ENDIF.
+    me->m_variant->* = i_variant->*.
+  ENDMETHOD.
+
+
+  METHOD create_container.
+    IF m_cont IS INITIAL.
+      CREATE OBJECT m_cont
+        EXPORTING
+          container_name              = i_container_name
+        EXCEPTIONS
+          cntl_error                  = 1
+          cntl_system_error           = 2
+          create_error                = 3
+          lifetime_error              = 4
+          lifetime_dynpro_dynpro_link = 5
+          OTHERS                      = 6.
+      o_obj = m_cont.
+
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD display.
+    FIELD-SYMBOLS : <fs_table> TYPE STANDARD TABLE.
+    ASSIGN me->mt_outtab->* TO <fs_table>.
+    CHECK sy-subrc = 0.
+    IF me->m_layout IS INITIAL.
+      CREATE DATA me->m_layout.
+    ENDIF.
+    IF me->mt_fcat IS INITIAL.
+      me->set_fcat_when_initial( ).
+    ENDIF.
+    IF me->mt_sort IS INITIAL.
+      CREATE DATA me->mt_sort.
+    ENDIF.
+    IF me->mt_filter IS INITIAL.
+      CREATE DATA me->mt_filter.
+    ENDIF.
+    IF me->m_variant IS INITIAL.
+      CREATE DATA me->m_variant.
+    ENDIF.
+    IF me->m_exlude IS INITIAL.
+      CREATE DATA me->m_exlude.
+    ENDIF.
+    me->set_table_for_first_display(
+      EXPORTING
+*        i_buffer_active               =     " Buffering Active
+*        i_bypassing_buffer            =     " Switch Off Buffer
+*        i_consistency_check           =     " Starting Consistency Check for Interface Error Recognition
+*        i_structure_name              =     " Internal Output Table Structure Name
+        is_variant                    =  me->m_variant->*   " Layout
+        i_save                        = 'A'   " Save Layout
+        i_default                     = 'X'    " Default Display Variant
+        is_layout                     = me->m_layout->*    " Layout
+*        is_print                      =     " Print Control
+*        it_special_groups             =     " Field Groups
+        it_toolbar_excluding          = me->m_exlude->*    " Excluded Toolbar Standard Functions
+*        it_hyperlink                  =     " Hyperlinks
+*        it_alv_graphics               =     " Table of Structure DTC_S_TC
+*        it_except_qinfo               =     " Table for Exception Quickinfo
+*        ir_salv_adapter               =     " Interface ALV Adapter
+      CHANGING
+        it_outtab                     = <fs_table>    " Output Table
+        it_fieldcatalog               = me->mt_fcat    " Field Catalog
+        it_sort                       = me->mt_sort->*    " Sort Criteria
+        it_filter                     = me->mt_filter->*    " Filter Criteria
+      EXCEPTIONS
+        invalid_parameter_combination = 1
+        program_error                 = 2
+        too_many_lines                = 3
+        OTHERS                        = 4
+    ).
+    IF sy-subrc <> 0.
+      RETURN.
+    ENDIF.
+  ENDMETHOD.
+  METHOD refresh_alv.
+    me->refresh_table_display(
+      EXPORTING
+        is_stable      = VALUE lvc_s_stbl( row = 'X'
+                                           col = 'X' )
+      EXCEPTIONS
+        finished       = 1
+        OTHERS         = 2
+    ).
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+                 WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD free_objects.
+    FREE: m_cont    ,
+          mt_fcat   ,
+          m_layo    ,
+          m_exlude  ,
+          mt_outtab    ,
+          m_layout  ,
+          m_variant ,
+          mt_sort   ,
+          mt_filter .
+  ENDMETHOD.
+
+  METHOD set_fcat_when_initial.
+    DATA       : lo_type  TYPE REF TO cl_abap_datadescr.
+    DATA       : l_data   TYPE REF TO data.
+    FIELD-SYMBOLS : <fs_table> TYPE STANDARD TABLE.
+    ASSIGN me->mt_outtab->* TO <fs_table>.
+    CHECK sy-subrc = 0.
+    lo_type     ?= cl_abap_tabledescr=>describe_by_data( <fs_table> ).
+    CREATE DATA l_data  TYPE HANDLE lo_type.
+
+
+    DATA : r_salv_table  TYPE REF TO cl_salv_table  .
+    DATA:
+      lo_columns      TYPE REF TO cl_salv_columns_table,
+      lo_aggregations TYPE REF TO cl_salv_aggregations.
+    TRY.
+        cl_salv_table=>factory(
+          EXPORTING
+            list_display   = if_salv_c_bool_sap=>false    " ALV Displayed in List Mode
+*    r_container    =     " Abstract Container for GUI Controls
+*    container_name =
+          IMPORTING
+            r_salv_table   = r_salv_table    " Basis Class Simple ALV Tables
+          CHANGING
+            t_table        = <fs_table>
+        ).
+      CATCH cx_salv_msg.
+    ENDTRY.
+* get columns object (basic field catalog data)
+    lo_columns  = r_salv_table->get_columns( ).
+* get aggregations object (Sorts&Sums)
+    lo_aggregations = r_salv_table->get_aggregations( ).
+* use method to create field catalog from this information
+    me->mt_fcat =
+      cl_salv_controller_metadata=>get_lvc_fieldcatalog(
+        r_columns             = lo_columns
+        r_aggregations        = lo_aggregations ).
+    DELETE me->mt_fcat WHERE fieldname = 'MANDT'.
+  ENDMETHOD.
+
+  METHOD create_fcat_from_table.
+
+    DATA       : lo_type  TYPE REF TO cl_abap_datadescr.
+    DATA       : l_data   TYPE REF TO data.
+
+
+    lo_type     ?= cl_abap_tabledescr=>describe_by_data( it_table ).
+    CREATE DATA l_data  TYPE HANDLE lo_type.
+
+
+    DATA : r_salv_table  TYPE REF TO cl_salv_table  .
+    DATA:
+      lo_columns      TYPE REF TO cl_salv_columns_table,
+      lo_aggregations TYPE REF TO cl_salv_aggregations.
+    TRY.
+        cl_salv_table=>factory(
+          EXPORTING
+            list_display   = if_salv_c_bool_sap=>false    " ALV Displayed in List Mode
+*    r_container    =     " Abstract Container for GUI Controls
+*    container_name =
+          IMPORTING
+            r_salv_table   = r_salv_table    " Basis Class Simple ALV Tables
+          CHANGING
+            t_table        = it_table
+        ).
+      CATCH cx_salv_msg.
+    ENDTRY.
+* get columns object (basic field catalog data)
+    lo_columns  = r_salv_table->get_columns( ).
+* get aggregations object (Sorts&Sums)
+    lo_aggregations = r_salv_table->get_aggregations( ).
+* use method to create field catalog from this information
+    r_fcat =
+      cl_salv_controller_metadata=>get_lvc_fieldcatalog(
+        r_columns             = lo_columns
+        r_aggregations        = lo_aggregations ).
+    DELETE r_fcat WHERE fieldname = 'MANDT'.
+  ENDMETHOD.
+
+  METHOD create_container2.
+      CREATE OBJECT o_obj
+        EXPORTING
+          container_name              = i_container_name
+        EXCEPTIONS
+          cntl_error                  = 1
+          cntl_system_error           = 2
+          create_error                = 3
+          lifetime_error              = 4
+          lifetime_dynpro_dynpro_link = 5
+          OTHERS                      = 6.
+  ENDMETHOD.
+
+ENDCLASS.
