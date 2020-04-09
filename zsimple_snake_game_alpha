@@ -154,7 +154,7 @@ CLASS main IMPLEMENTATION.
       WHEN '38'.  ms_snake-next_direction = 'U'.RETURN.
       WHEN '39'.  ms_snake-next_direction = 'R'.RETURN.
       WHEN '40'.  ms_snake-next_direction = 'D'.RETURN.
-      WHEN 'undefined'. "auto refresh'ten gelecek
+      WHEN 'undefined'. "auto refresh
       WHEN OTHERS. RETURN.
     ENDCASE.
 
