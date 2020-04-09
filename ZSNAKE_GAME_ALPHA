@@ -1,0 +1,259 @@
+*&---------------------------------------------------------------------*
+*& Report ZSNAKE_GAME_ALPHA
+*&---------------------------------------------------------------------*
+*& Program               : ZSNAKE_GAME_ALPHA
+*& Technical Consultant  : Cenkay Arkan
+*& Short description     : Simple Snake Game
+*&---------------------------------------------------------------------*
+*& History               :
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+REPORT zcenkay_p005.
+
+CLASS main DEFINITION.
+  PUBLIC SECTION.
+    METHODS:
+      constructor,
+      display.
+  PRIVATE SECTION.
+    TYPES : BEGIN OF ty_cells,
+              row      TYPE i,
+              column   TYPE i,
+              color    TYPE text100,
+              rotate   TYPE char1,
+              sequence TYPE i,
+            END OF ty_cells,
+            tty_cells TYPE STANDARD TABLE OF ty_cells WITH EMPTY KEY. "it can be sorted table
+    TYPES : BEGIN OF ty_game_attr,
+              html            TYPE string,
+              row_count       TYPE int4,
+              column_count    TYPE int4,
+              t_cells         TYPE tty_cells,
+              snake_init_size TYPE int4,
+              t_snake         TYPE tty_cells,
+              title           TYPE cl_abap_browser=>title,
+              score           TYPE int4,
+              apple           TYPE ty_cells,
+              target          TYPE ty_cells,
+              next_direction  TYPE char1,
+            END OF ty_game_attr.
+    DATA : ms_snake TYPE ty_game_attr.
+    METHODS:
+      on_event FOR EVENT sapevent OF cl_abap_browser IMPORTING action query_table.
+
+    METHODS set_initial_cells.
+    METHODS set_snake_position.
+    METHODS fill_html_begin
+      IMPORTING iv_stop        TYPE abap_bool OPTIONAL
+      RETURNING
+                VALUE(rv_html) TYPE string.
+    METHODS fill_html_end
+      RETURNING
+        VALUE(rv_html) TYPE string.
+    METHODS fill_html_table
+      RETURNING
+        VALUE(rv_html) TYPE string.
+    METHODS process.
+    METHODS set_apple_position.
+
+ENDCLASS.
+
+CLASS main IMPLEMENTATION.
+  METHOD constructor.
+    "can be get this values from selection screen
+    me->ms_snake-row_count       = 8.
+    me->ms_snake-column_count    = 10.
+    me->ms_snake-snake_init_size = 4.
+    me->ms_snake-title           = 'Snake Game'(001).
+    "
+    me->set_initial_cells( ).
+    me->set_snake_position( ).
+    me->set_apple_position( ).
+    me->ms_snake-html = |{ me->fill_html_begin( ) } { me->fill_html_table( ) } { me->fill_html_end( ) }|.
+
+  ENDMETHOD.
+
+  METHOD display.
+    SET HANDLER me->on_event.
+    cl_abap_browser=>show_html(
+     title        = me->ms_snake-title
+     size         = cl_abap_browser=>medium
+     format       = cl_abap_browser=>medium
+     context_menu = 'X'
+     html_string  = me->ms_snake-html ).
+  ENDMETHOD.
+
+  METHOD set_initial_cells.
+    DATA : ls_cells        TYPE ty_cells.
+    DO ms_snake-row_count TIMES.
+      ls_cells-row    = sy-index.
+      DO ms_snake-column_count TIMES.
+        ls_cells-column = sy-index.
+        APPEND ls_cells TO ms_snake-t_cells.
+      ENDDO.
+      CLEAR ls_cells.
+    ENDDO.
+  ENDMETHOD.
+
+
+  METHOD set_snake_position.
+    me->ms_snake-t_snake = REDUCE tty_cells( INIT lt_snake TYPE tty_cells FOR i = 1 THEN i + 1 WHILE i <= ms_snake-snake_init_size
+                            NEXT lt_snake = VALUE #( BASE lt_snake ( row    = me->ms_snake-row_count DIV 2 + 1
+                                                                     column = ( ( me->ms_snake-column_count DIV 2 ) - i )
+                                                                     color  = 'green'
+                                                                     rotate = 'R'
+                                                                     sequence   = lines( lt_snake ) + 1
+                                                                    )  ) ).
+  ENDMETHOD.
+
+
+  METHOD fill_html_begin.
+    rv_html =     rv_html =
+  '<html><head><style>  html, body {   height: 100%;    margin: 0;  }' &&
+                'body { background: grey;  align-items: center; display: flex;justify-content: center;  }' &&
+                'table { border: 0px solid white; border: 0; height: 80%; width: 80%; }' &&
+                '</style><script type="text/javascript">' &&
+      'function okd(e)' &&
+      '{c=window.event.keyCode;window.location=''sapevent:''+c;}' &&
+      COND string( WHEN iv_stop IS SUPPLIED THEN
+      'document.onkeydown = okd;</script></head><body >'
+      ELSE
+    ' document.onkeydown = okd;' &&
+    'function AutoRefresh(t) {setTimeout("location.reload(true);", t);{c=window.event.keyCode;window.location=''sapevent:''+c;}}</script></head><body onload = "JavaScript:AutoRefresh(700);">'  ).
+  ENDMETHOD.
+
+
+  METHOD fill_html_end.
+    rv_html = '</body></html>'.
+  ENDMETHOD.
+
+
+  METHOD fill_html_table.
+
+    DATA(lt_filled_cells) = VALUE tty_cells( BASE me->ms_snake-t_snake ( me->ms_snake-apple ) ).
+
+    rv_html = '<table>' && REDUCE string(
+                    INIT lv_str TYPE string FOR row = 1 THEN row + 1 UNTIL row = ms_snake-row_count + 1
+                                  NEXT lv_str = |{ lv_str } <tr>{
+                                        REDUCE #( INIT lv_str_td TYPE string
+                                                    FOR column = 1 UNTIL column = me->ms_snake-column_count + 1
+                                                     NEXT lv_str_td = |{ lv_str_td }<td {
+                                                            COND #( WHEN line_exists( lt_filled_cells[ row    = row
+                                                                                                       column = column ] )
+                                                                            THEN |bgcolor = "{ lt_filled_cells[ row    = row
+                                                                                                                column = column ]-color }"|
+                                                                            ELSE |bgcolor = "white"| )
+                                                            }/>| )  } </tr>| ) && '</table>'.
+
+  ENDMETHOD.
+
+  METHOD on_event.
+    " I dont want to continue that block without auto refresh
+    CASE action.
+      WHEN '37'.  ms_snake-next_direction = 'L'.RETURN.
+      WHEN '38'.  ms_snake-next_direction = 'U'.RETURN.
+      WHEN '39'.  ms_snake-next_direction = 'R'.RETURN.
+      WHEN '40'.  ms_snake-next_direction = 'D'.RETURN.
+      WHEN 'undefined'. "auto refresh'ten gelecek
+      WHEN OTHERS. RETURN.
+    ENDCASE.
+
+    me->process( ).
+    cl_abap_browser=>show_html(
+     title        = me->ms_snake-title
+     size         = cl_abap_browser=>medium
+     format       = cl_abap_browser=>medium
+     context_menu = 'X'
+     html_string  = me->ms_snake-html ).
+  ENDMETHOD.
+
+
+  METHOD process.
+    DATA(lt_snake) = me->ms_snake-t_snake.
+    LOOP AT me->ms_snake-t_snake ASSIGNING FIELD-SYMBOL(<fs_snake>)
+                        GROUP BY <fs_snake>-sequence ASCENDING .
+      if ms_snake-next_direction is not initial.
+        <fs_snake>-rotate = ms_snake-next_direction.
+      endif.
+      IF <fs_snake>-sequence = 1.
+        CASE <fs_snake>-rotate.
+          WHEN 'R'.
+            <fs_snake>-column = <fs_snake>-column + 1.
+          WHEN 'L'.
+            <fs_snake>-column = <fs_snake>-column - 1 .
+          WHEN 'U'.
+            <fs_snake>-row = <fs_snake>-row - 1 .
+          WHEN 'D'.
+            <fs_snake>-row = <fs_snake>-row + 1 .
+        ENDCASE.
+        IF <fs_snake>-column <= 0.
+          <fs_snake>-column = me->ms_snake-column_count.
+        ELSEIF <fs_snake>-column >  me->ms_snake-column_count.
+          <fs_snake>-column = 1.
+        ENDIF.
+        IF <fs_snake>-row <= 0.
+          <fs_snake>-row = me->ms_snake-row_count.
+        ELSEIF <fs_snake>-row > me->ms_snake-row_count.
+          <fs_snake>-row = 1.
+        ENDIF.
+        READ TABLE lt_snake TRANSPORTING NO FIELDS WITH KEY column = <fs_snake>-column
+                                                            row    = <fs_snake>-row.
+        IF sy-subrc = 0.
+          cl_abap_browser=>close_browser( ).
+          MESSAGE |Game_Over. Your score{ ms_snake-score }| TYPE 'I'.
+          LEAVE PROGRAM.
+        ELSE.
+          data(lv_scored) = xsdbool( me->ms_snake-apple-row = <fs_snake>-row AND
+                                     me->ms_snake-apple-column = <fs_snake>-column ).
+        ENDIF.
+        CONTINUE.
+      ENDIF.
+      READ TABLE lt_snake INTO DATA(ls_snake) WITH KEY sequence = <fs_snake>-sequence - 1.
+      IF sy-subrc = 0.
+        <fs_snake>-row = ls_snake-row.
+        <fs_snake>-column = ls_snake-column.
+      ENDIF.
+    ENDLOOP.
+        CLEAR  ms_snake-next_direction .
+    if lv_scored = abap_true.
+      APPEND VALUE ty_cells( BASE lt_snake[ lines( lt_snake ) ]
+                             sequence = lines( lt_snake ) + 1  ) TO me->ms_snake-t_snake.
+      ms_snake-score = ms_snake-score + 10.
+      me->set_apple_position( ).
+    endif.
+    me->ms_snake-html = me->fill_html_begin( ) && me->fill_html_table( ) && me->fill_html_end( ).
+
+  ENDMETHOD.
+
+
+  METHOD set_apple_position.
+    me->ms_snake-apple =
+        VALUE ty_cells( LET rnd = cl_abap_random_int=>create( seed = CONV #( sy-timlo )
+                                                              min  = 0
+                                                              max =  me->ms_snake-column_count * me->ms_snake-row_count - 1 )
+                         number = REDUCE int4( INIT num TYPE int4
+                                               FOR i = rnd->get_next( )
+                                               UNTIL NOT line_exists( me->ms_snake-t_snake[
+                                                    row = COND #( WHEN i MOD me->ms_snake-column_count = 0
+                                                                 THEN i DIV me->ms_snake-column_count
+                                                                 ELSE i DIV me->ms_snake-column_count + 1 )
+                                                column = COND #( WHEN i MOD me->ms_snake-column_count = 0
+                                                                 THEN me->ms_snake-column_count
+                                                     ELSE i MOD me->ms_snake-column_count   ) ] )
+                                                               NEXT num = i + 1 )
+                         row    =  COND int4( WHEN number MOD me->ms_snake-column_count = 0
+                                                                 THEN number DIV me->ms_snake-column_count
+                                                                 ELSE number DIV me->ms_snake-column_count + 1 )
+                         column =  COND int4( WHEN number MOD me->ms_snake-column_count = 0
+                                              THEN me->ms_snake-column_count
+                                              ELSE number MOD me->ms_snake-column_count ) IN
+                          row    = row
+                          column = column
+                          color = 'red' ) .
+  ENDMETHOD.
+
+
+ENDCLASS.
+
+START-OF-SELECTION.
+  NEW main( )->display( ).
