@@ -1,14 +1,14 @@
 *&---------------------------------------------------------------------*
-*& Report ZSNAKE_GAME_ALPHA
+*& Report ZSIMPLE_SNAKE_GAME_ALPHA
 *&---------------------------------------------------------------------*
-*& Program               : ZSNAKE_GAME_ALPHA
+*& Program               : zsimple_snake_game_alpha
 *& Technical Consultant  : Cenkay Arkan
 *& Short description     : Simple Snake Game
 *&---------------------------------------------------------------------*
 *& History               :
 *&---------------------------------------------------------------------*
 *&---------------------------------------------------------------------*
-REPORT zcenkay_p005.
+REPORT zsimple_snake_game_alpha.
 
 CLASS main DEFINITION.
   PUBLIC SECTION.
